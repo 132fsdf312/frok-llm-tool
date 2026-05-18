@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="200" viewBox="0 0 800 200">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e"/>
+      <stop offset="50%" style="stop-color:#16213e"/>
+      <stop offset="100%" style="stop-color:#0f3460"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#e94560"/>
+      <stop offset="100%" style="stop-color:#f5a623"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="200" fill="url(#bg)" rx="12"/>
+  <!-- Decorative circles -->
+  <circle cx="700" cy="40" r="30" fill="none" stroke="#e94560" stroke-width="0.5" opacity="0.3"/>
+  <circle cx="740" cy="60" r="20" fill="none" stroke="#f5a623" stroke-width="0.5" opacity="0.2"/>
+  <circle cx="100" cy="170" r="25" fill="none" stroke="#e94560" stroke-width="0.5" opacity="0.2"/>
+  <text x="60" y="85" font-family="monospace" font-size="56" font-weight="bold" fill="white">Frok</text>
+  <text x="60" y="120" font-family="monospace" font-size="16" fill="#a0a0b0">智能编程助手 · LLM API Tool</text>
+  <rect x="60" y="135" width="280" height="3" rx="1.5" fill="url(#accent)"/>
+  <text x="60" y="165" font-family="monospace" font-size="12" fill="#707080">Python / 多模型 / 嵌入式开发 / 代码审查</text>
+</svg>
