@@ -1,0 +1,9 @@
+{
+  "name": "auto_7eca689f",
+  "description": "任务完成: 你好",
+  "trigger": "你好",
+  "system_prompt": "你正在处理一个类似的任务: 你好\n\n根据之前的经验，这个任务需要以下步骤:\n- ask_user",
+  "steps": [
+    "步骤1: 使用ask_user"
+  ]
+}

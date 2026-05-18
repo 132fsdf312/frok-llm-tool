@@ -1,0 +1,11 @@
+{
+  "name": "auto_5418683a",
+  "description": "任务完成: 你感觉怎么样",
+  "trigger": "你感觉怎么样",
+  "system_prompt": "你正在处理一个类似的任务: 你感觉怎么样\n\n根据之前的经验，这个任务需要以下步骤:\n- remember_feedback\n- ask_user\n- finish",
+  "steps": [
+    "步骤1: 使用remember_feedback",
+    "步骤2: 使用ask_user",
+    "步骤3: 使用finish"
+  ]
+}

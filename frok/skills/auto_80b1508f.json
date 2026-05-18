@@ -1,0 +1,13 @@
+{
+  "name": "auto_80b1508f",
+  "description": "任务完成: 你能干什么",
+  "trigger": "你能干什么",
+  "system_prompt": "你正在处理一个类似的任务: 你能干什么\n\n根据之前的经验，这个任务需要以下步骤:\n- read_file\n- list_skills\n- get_tree\n- git_status\n- finish",
+  "steps": [
+    "步骤1: 使用read_file",
+    "步骤2: 使用list_skills",
+    "步骤3: 使用get_tree",
+    "步骤4: 使用git_status",
+    "步骤5: 使用finish"
+  ]
+}

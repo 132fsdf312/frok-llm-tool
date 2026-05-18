@@ -1,0 +1,14 @@
+{
+  "name": "auto_8b12a7fe",
+  "description": "任务完成: 创建word个人简历文档，输出位置在D:\\10临时工作室\\1海峡两岸暨港澳地区大学生计算机创新选拔赛",
+  "trigger": "创建word个人简历文档，输出位置在D:\\10临时工作室\\1",
+  "system_prompt": "你正在处理一个类似的任务: 创建word个人简历文档，输出位置在D:\\10临时工作室\\1海峡两岸暨港澳地区大学生计算机创新选拔赛\\Frok code\\垃圾桶\n\n根据之前的经验，这个任务需要以下步骤:\n- execute_command\n- create_directory\n- write_file\n- execute_command\n- delete_file\n- finish",
+  "steps": [
+    "步骤1: 使用execute_command",
+    "步骤2: 使用create_directory",
+    "步骤3: 使用write_file",
+    "步骤4: 使用execute_command",
+    "步骤5: 使用delete_file",
+    "步骤6: 使用finish"
+  ]
+}

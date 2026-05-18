@@ -1,0 +1,11 @@
+{
+  "name": "auto_359c76a2",
+  "description": "错误修复任务: [错误] 文件路径错误",
+  "trigger": "帮我做一个贪吃蛇游戏",
+  "system_prompt": "你正在处理一个类似的任务: 帮我做一个贪吃蛇游戏\n\n根据之前的经验，这个任务需要以下步骤:\n- write_file\n- execute_command\n- write_file",
+  "steps": [
+    "步骤1: 使用write_file",
+    "步骤2: 使用execute_command",
+    "步骤3: 使用write_file"
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "name": "auto_7f23f044",
+  "description": "任务完成: 如果给电脑插入一个单片机，你能检测到插入的单片机吗，又是怎么烧录程序并执行的呢",
+  "trigger": "如果给电脑插入一个单片机，你能检测到插入的单片机吗，又是怎么",
+  "system_prompt": "你正在处理一个类似的任务: 如果给电脑插入一个单片机，你能检测到插入的单片机吗，又是怎么烧录程序并执行的呢\n\n根据之前的经验，这个任务需要以下步骤:\n- execute_command\n- execute_command\n- execute_command\n- write_file\n- finish",
+  "steps": [
+    "步骤1: 使用execute_command",
+    "步骤2: 使用execute_command",
+    "步骤3: 使用execute_command",
+    "步骤4: 使用write_file",
+    "步骤5: 使用finish"
+  ]
+}

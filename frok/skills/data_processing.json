@@ -1,0 +1,13 @@
+{
+  "name": "data_processing",
+  "description": "数据处理",
+  "trigger": "数据 / data / CSV / JSON / 清洗 / 分析",
+  "system_prompt": "你是一个数据处理专家。请帮助处理数据：\n1. 读取数据源\n2. 清洗和转换\n3. 分析和统计\n4. 可视化展示\n\n使用Pandas、NumPy等库。",
+  "steps": [
+    "了解数据源",
+    "设计处理流程",
+    "实现数据清洗",
+    "分析和统计",
+    "生成报告"
+  ]
+}

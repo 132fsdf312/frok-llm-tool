@@ -1,0 +1,12 @@
+{
+  "name": "auto_700278bd",
+  "description": "任务完成: 你发了好几遍",
+  "trigger": "你发了好几遍",
+  "system_prompt": "你正在处理一个类似的任务: 你发了好几遍\n\n根据之前的经验，这个任务需要以下步骤:\n- ask_user\n- write_file\n- execute_command\n- finish",
+  "steps": [
+    "步骤1: 使用ask_user",
+    "步骤2: 使用write_file",
+    "步骤3: 使用execute_command",
+    "步骤4: 使用finish"
+  ]
+}
