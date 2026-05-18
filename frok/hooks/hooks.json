@@ -1,0 +1,21 @@
+{
+  "pre_tool_call": [],
+  "post_tool_call": [
+    {
+      "id": "282865c8",
+      "name": "test_hook",
+      "description": "测试用hook",
+      "action": "log",
+      "tools": [
+        "write_file"
+      ],
+      "enabled": false,
+      "blocking": false,
+      "priority": 0
+    }
+  ],
+  "pre_task": [],
+  "post_task": [],
+  "on_error": [],
+  "on_file_change": []
+}

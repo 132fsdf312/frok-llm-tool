@@ -1,0 +1,10 @@
+{
+  "name": "auto_e403072c",
+  "description": "任务完成: 然后呢",
+  "trigger": "然后呢",
+  "system_prompt": "你正在处理一个类似的任务: 然后呢\n\n根据之前的经验，这个任务需要以下步骤:\n- ask_user\n- finish",
+  "steps": [
+    "步骤1: 使用ask_user",
+    "步骤2: 使用finish"
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "name": "auto_7a12d1a8",
+  "description": "多工具协作任务: list_directory, execute_command, write_file, find_files",
+  "trigger": "创建一份个人简历word文档，输出位置在D:\\10临时工作室",
+  "system_prompt": "你正在处理一个类似的任务: 创建一份个人简历word文档，输出位置在D:\\10临时工作室\\1海峡两岸暨港澳地区大学生计算机创新选拔赛\\Frok code\\垃圾桶\n\n根据之前的经验，这个任务需要以下步骤:\n- list_directory\n- execute_command\n- execute_command\n- write_file\n- execute_command\n- find_files\n- list_directory\n- write_file\n- execute_command\n- list_directory",
+  "steps": [
+    "步骤1: 使用list_directory",
+    "步骤2: 使用execute_command",
+    "步骤3: 使用execute_command",
+    "步骤4: 使用write_file",
+    "步骤5: 使用execute_command",
+    "步骤6: 使用find_files",
+    "步骤7: 使用list_directory",
+    "步骤8: 使用write_file",
+    "步骤9: 使用execute_command",
+    "步骤10: 使用list_directory"
+  ]
+}

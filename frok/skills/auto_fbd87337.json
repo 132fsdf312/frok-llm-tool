@@ -1,0 +1,13 @@
+{
+  "name": "auto_fbd87337",
+  "description": "任务完成: 你是怎么和单片机通信的",
+  "trigger": "你是怎么和单片机通信的",
+  "system_prompt": "你正在处理一个类似的任务: 你是怎么和单片机通信的\n\n根据之前的经验，这个任务需要以下步骤:\n- embedded_detect\n- embedded_list_ports\n- write_file\n- write_file\n- finish",
+  "steps": [
+    "步骤1: 使用embedded_detect",
+    "步骤2: 使用embedded_list_ports",
+    "步骤3: 使用write_file",
+    "步骤4: 使用write_file",
+    "步骤5: 使用finish"
+  ]
+}

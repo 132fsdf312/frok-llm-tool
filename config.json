@@ -1,0 +1,41 @@
+{
+  "providers": {
+    "openai": {
+      "name": "OpenAI",
+      "base_url": "https://api.openai.com/v1",
+      "api_key": "",
+      "models": ["gpt-4", "gpt-4-turbo", "gpt-3.5-turbo"],
+      "default_model": "gpt-3.5-turbo"
+    },
+    "anthropic": {
+      "name": "Anthropic",
+      "api_key": "",
+      "models": ["claude-sonnet-4-20250514", "claude-haiku-4-5-20251001"],
+      "default_model": "claude-haiku-4-5-20251001"
+    },
+    "aliyun": {
+      "name": "阿里云",
+      "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "api_key": "",
+      "models": ["qwen-turbo", "qwen-plus", "qwen-max"],
+      "default_model": "qwen-turbo"
+    },
+    "deepseek": {
+      "name": "DeepSeek",
+      "base_url": "https://api.deepseek.com",
+      "api_key": "",
+      "models": ["deepseek-v4-pro", "deepseek-chat", "deepseek-coder"],
+      "default_model": "deepseek-v4-pro"
+    },
+    "mimo": {
+      "name": "MiMo",
+      "base_url": "https://token-plan-cn.xiaomimimo.com/v1",
+      "api_key": "",
+      "models": ["mimo-v2.5-pro", "mimo-v2-pro", "mimo-v2.5"],
+      "default_model": "mimo-v2.5-pro"
+    }
+  },
+  "default_provider": "mimo",
+  "max_tokens": 2048,
+  "temperature": 0.7
+}

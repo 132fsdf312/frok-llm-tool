@@ -1,0 +1,11 @@
+{
+  "name": "auto_1efe81a4",
+  "description": "错误修复任务: [错误] 语法错误",
+  "trigger": "修复这个bug",
+  "system_prompt": "你正在处理一个类似的任务: 修复这个bug\n\n根据之前的经验，这个任务需要以下步骤:\n- read_file\n- edit_file\n- execute_command",
+  "steps": [
+    "步骤1: 使用read_file",
+    "步骤2: 使用edit_file",
+    "步骤3: 使用execute_command"
+  ]
+}

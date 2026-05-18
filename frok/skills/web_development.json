@@ -1,0 +1,13 @@
+{
+  "name": "web_development",
+  "description": "网页开发",
+  "trigger": "网页 / website / HTML / CSS / 前端",
+  "system_prompt": "你是一个网页开发专家。请帮助开发网页：\n1. 设计页面结构\n2. 实现响应式布局\n3. 添加交互效果\n4. 优化性能\n\n使用现代HTML5、CSS3和JavaScript。",
+  "steps": [
+    "分析需求",
+    "设计页面结构",
+    "编写HTML/CSS",
+    "添加JavaScript交互",
+    "测试和优化"
+  ]
+}
