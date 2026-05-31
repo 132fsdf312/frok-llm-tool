@@ -23,7 +23,7 @@ from codemap import CodeMapGenerator
 from multi_edit import MultiFileEditor
 from completion import CodeCompletion, Position
 from sandbox import SandboxExecutor, SandboxConfig, ResourceLimits
-from cli import FrokCLI, Colors, cli
+from cli import FrokCLI, Colors, cli, display_width
 from diff_viewer import DiffGenerator, DiffFormatter, CodeReviewer
 from llm_client import LLMClient
 from tool_handlers import ToolHandlers
@@ -336,10 +336,10 @@ class FrokAgent:
     # ==================== 输出辅助 ====================
 
     def _print_once(self, shown: bool, text: str) -> bool:
-        """打印 Frok 前缀 + 内容（仅首次显示前缀）"""
+        """打印回复内容（仅首次显示前缀）"""
         if not shown:
-            self.cli.print_assistant("")
-        print(text)
+            self.cli.print_assistant()
+        print(f"  {text}")
         return True
 
     # ==================== 核心循环 ====================
@@ -372,7 +372,10 @@ class FrokAgent:
             iteration += 1
             task_info["iterations"] = iteration
 
+            # 显示思考中提示
+            self.cli.print_thinking()
             response, truncated = self._call_llm(messages, stream=True)
+            self.cli.clear_thinking()
 
             if not response:
                 final_result = "[错误] 模型未返回响应"
@@ -402,13 +405,16 @@ class FrokAgent:
                     break
                 # 模型直接回复文本（问候、简单问答等）→ 作为最终结果
                 if not shown_prefix:
-                    self.cli.print_assistant("")
+                    self.cli.print_assistant()
+                # 打印文本回复（缩进对齐）
+                for line in response.split('\n'):
+                    print(f"  {line}")
                 final_result = response
                 break
 
             # 有工具调用 → 显示前缀和工具执行
             if not shown_prefix:
-                self.cli.print_assistant("")
+                self.cli.print_assistant()
                 shown_prefix = True
 
             # 执行工具调用
@@ -432,7 +438,8 @@ class FrokAgent:
 
                 tool_results.append({"tool": name, "result": result})
                 task_info["tool_calls"].append(name)
-                self.cli.print_result(result[:200] + "..." if len(result) > 200 else result)
+                is_error = result.startswith("[错误]")
+                self.cli.print_result(result, success=not is_error)
 
                 if result.startswith("[错误]"):
                     task_info["errors"].append(result)
@@ -637,7 +644,8 @@ def interactive_mode(config: Dict) -> None:
                 cli.show_box(plan_output or "暂无计划", title="计划")
             elif cmd == "/planmode":
                 agent.plan_mode = not agent.plan_mode
-                cli.print_result(f"Plan模式: {'开' if agent.plan_mode else '关'}")
+                cli._plan_mode = agent.plan_mode
+                cli.print_info(f"Plan模式: {'开' if agent.plan_mode else '关'}")
             elif cmd == "/hooks":
                 cli.show_box(agent.hooks.list_hooks(), title="Hooks")
             elif cmd == "/agents":
@@ -668,19 +676,43 @@ def interactive_mode(config: Dict) -> None:
 
 
 def _show_help():
-    """简洁帮助信息"""
-    print(f"""
-{Colors.CYAN}常用{Colors.RESET}
-  直接输入任务     描述你想做的事
-  /setkey [m] [k]  配置 API Key
-  /switch [名称]   切换模型
-  /status          当前状态
-  /clear           清空对话
-  /quit            退出
+    """帮助信息（两列布局）"""
+    c = Colors
+    rows = [
+        ("直接输入任务", "描述你想做的事"),
+        ("/setkey [m] [k]", "配置 API Key"),
+        ("/switch [名称]", "切换模型"),
+        ("/status", "当前状态"),
+        ("/clear", "清空对话"),
+        ("/save", "保存会话"),
+        ("/quit", "退出"),
+        ("", ""),
+        (f"{c.DIM}高级命令{c.RESET}", ""),
+        ("/skills", "列出技能"),
+        ("/plan", "显示计划"),
+        ("/planmode", "切换 Plan 模式"),
+        ("/diff", "查看差异"),
+        ("/map", "代码地图"),
+        ("/sandbox", "沙箱执行"),
+        ("/memory", "查看记忆"),
+        ("/hooks", "列出 Hook"),
+        ("/agents", "列出子代理"),
+    ]
 
-{Colors.DIM}高级{Colors.RESET}
-  /skills /plan /diff /map /sandbox /memory /hooks /agents
-""")
+    # 计算列宽
+    col_w = max(display_width(r[0]) for r in rows if r[0]) + 2
+    lines = []
+    for cmd, desc in rows:
+        if not cmd and not desc:
+            lines.append("")
+        elif not desc:
+            lines.append(f"  {cmd}")
+        else:
+            pad = col_w - display_width(cmd)
+            lines.append(f"  {cmd}{' ' * max(1, pad)}{c.DIM}{desc}{c.RESET}")
+
+    print('\n'.join(lines))
+    print()
 
 
 def _handle_setkey(config: Dict, args: str):
