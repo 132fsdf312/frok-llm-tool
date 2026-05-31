@@ -9,6 +9,27 @@ import os
 import subprocess
 from pathlib import Path
 
+# ==================== 加载 .env ====================
+
+def load_dotenv():
+    """加载 .env 文件中的环境变量"""
+    env_path = Path(__file__).parent.parent / ".env"
+    if not env_path.exists():
+        return
+    with open(env_path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" in line:
+                key, _, value = line.partition("=")
+                key = key.strip()
+                value = value.strip().strip('"').strip("'")
+                if key and value:
+                    os.environ.setdefault(key, value)
+
+load_dotenv()
+
 # ==================== 环境检测与自动配置 ====================
 
 SETUP_MARKER = Path(__file__).parent.parent / ".setup_complete"
