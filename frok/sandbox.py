@@ -23,6 +23,9 @@ try:
 except ImportError:
     HAS_RESOURCE = False
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 # ==================== 数据结构 ====================
 
@@ -139,6 +142,9 @@ class SandboxExecutor:
         r"subprocess\.",
         r"os\.system\s*\(",
         r"os\.popen\s*\(",
+        r"os\._exit\s*\(",
+        r"ctypes\.",
+        r"importlib\.",
     ]
 
     def __init__(self, config: SandboxConfig = None):
@@ -146,11 +152,39 @@ class SandboxExecutor:
         self.temp_dir = Path(tempfile.mkdtemp(prefix="frok_sandbox_"))
 
     def _check_dangerous_code(self, code: str) -> Optional[str]:
-        """检查危险代码"""
+        """检查危险代码（多层检测）"""
         import re
+
+        # 第一层：正则模式匹配
         for pattern in self.DANGEROUS_PATTERNS:
             if re.search(pattern, code, re.IGNORECASE):
                 return f"检测到危险代码模式: {pattern}"
+
+        # 第二层：AST 分析（Python 代码）
+        if 'import' in code or '__' in code:
+            try:
+                tree = ast.parse(code)
+                for node in ast.walk(tree):
+                    # 检测 import os; os.system 等间接调用
+                    if isinstance(node, ast.Attribute):
+                        if isinstance(node.value, ast.Name):
+                            if node.value.id in ('os', 'subprocess', 'shutil') and node.attr in ('system', 'popen', 'remove', 'rmtree'):
+                                return f"检测到危险调用: {node.value.id}.{node.attr}"
+                    # 检测 __import__ 内置函数调用
+                    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+                        if node.func.id in ('__import__', 'eval', 'exec', 'compile'):
+                            return f"检测到危险内置函数: {node.func.id}"
+                    # 检测 getattr(os, 'system') 等间接调用
+                    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+                        if node.func.id == 'getattr' and len(node.args) >= 2:
+                            obj_arg = node.args[0]
+                            attr_arg = node.args[1]
+                            if isinstance(obj_arg, ast.Name) and obj_arg.id in ('os', 'subprocess', 'shutil'):
+                                if isinstance(attr_arg, ast.Constant) and attr_arg.value in ('system', 'popen', 'remove', 'rmtree'):
+                                    return f"检测到危险间接调用: getattr({obj_arg.id}, '{attr_arg.value}')"
+            except SyntaxError:
+                pass  # 非 Python 代码，跳过 AST 检测
+
         return None
 
     def _check_path_access(self, path: str) -> bool:
@@ -160,13 +194,19 @@ class SandboxExecutor:
 
         path = os.path.abspath(path)
 
-        # 检查禁止路径
+        # 禁止访问的系统路径
         blocked = [
             "/etc", "/usr", "/bin", "/sbin", "/boot", "/dev", "/proc", "/sys",
-            "C:\\Windows", "C:\\Program Files",
         ]
+        # Windows 系统路径
+        if sys.platform == 'win32':
+            win_path = os.environ.get('WINDIR', r'C:\Windows').lower()
+            blocked.append(win_path)
+            blocked.append(r'C:\Program Files'.lower())
+            blocked.append(r'C:\Windows'.lower())
+
         for bp in blocked:
-            if path.startswith(bp):
+            if path.lower().startswith(bp.lower()):
                 return False
 
         # 检查允许路径
@@ -181,26 +221,22 @@ class SandboxExecutor:
         return True
 
     def _set_resource_limits(self, limits: ResourceLimits):
-        """设置资源限制 (Unix only, Windows跳过)"""
-        if not HAS_RESOURCE:
-            return
-
-        try:
-            # 设置内存限制
-            if limits.max_memory_mb:
-                max_bytes = limits.max_memory_mb * 1024 * 1024
-                resource.setrlimit(resource.RLIMIT_AS, (max_bytes, max_bytes))
-
-            # 设置CPU时间限制
-            if limits.max_cpu_seconds:
-                resource.setrlimit(resource.RLIMIT_CPU, (limits.max_cpu_seconds, limits.max_cpu_seconds))
-
-            # 设置文件大小限制
-            if limits.max_file_size:
-                resource.setrlimit(resource.RLIMIT_FSIZE, (limits.max_file_size, limits.max_file_size))
-
-        except (AttributeError, ValueError):
-            pass
+        """设置资源限制 (Unix: resource模块, Windows: Job Objects)"""
+        if HAS_RESOURCE:
+            try:
+                if limits.max_memory_mb:
+                    max_bytes = limits.max_memory_mb * 1024 * 1024
+                    resource.setrlimit(resource.RLIMIT_AS, (max_bytes, max_bytes))
+                if limits.max_cpu_seconds:
+                    resource.setrlimit(resource.RLIMIT_CPU, (limits.max_cpu_seconds, limits.max_cpu_seconds))
+                if limits.max_file_size:
+                    resource.setrlimit(resource.RLIMIT_FSIZE, (limits.max_file_size, limits.max_file_size))
+            except (AttributeError, ValueError):
+                pass
+        elif sys.platform == 'win32':
+            # Windows: 通过 subprocess 的 creationflags 限制
+            # JOB_OBJECT_LIMIT_PROCESS_MEMORY 等需要 ctypes，在 _execute_code 中处理
+            logger.debug("Windows 环境：资源限制通过 subprocess timeout 和输出截断实现")
 
     def _prepare_environment(self) -> Dict[str, str]:
         """准备执行环境"""
@@ -399,7 +435,7 @@ class SandboxExecutor:
             if self.config.cleanup:
                 try:
                     os.unlink(temp_file)
-                except:
+                except OSError:
                     pass
 
     def _check_command_available(self, command: str) -> bool:
@@ -411,7 +447,7 @@ class SandboxExecutor:
                 timeout=5,
             )
             return True
-        except:
+        except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
             return False
 
     # ==================== 交互式执行 ====================

@@ -505,7 +505,7 @@ class EmbeddedToolExecutor:
 
     def _load_platforms(self):
         """加载平台"""
-        from frok.platforms import get_all_platforms
+        from platforms import get_all_platforms
         self._platforms = get_all_platforms()
 
     def _get_platform(self, name: str) -> Optional[EmbeddedPlatform]:

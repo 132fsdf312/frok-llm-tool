@@ -139,7 +139,7 @@ class Subagent:
 
                 # 调用LLM
                 if self.llm_caller:
-                    response = self.llm_caller(
+                    response, _ = self.llm_caller(
                         [{"role": m.role, "content": m.content} for m in self.messages],
                         stream=False
                     )

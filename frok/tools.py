@@ -1,18 +1,23 @@
 """
 Frok 工具系统
-定义所有可用工具，供AI自动调用
+基础工具执行器（文件操作、搜索、命令执行）+ 工具调用解析
 """
 
 import json
-from json import JSONDecoder
+import logging
 import os
-import subprocess
-import shutil
 import re
+import shlex
+import shutil
+import subprocess
+import sys
+from json import JSONDecoder
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-# ==================== 工具定义 ====================
+logger = logging.getLogger(__name__)
+
+# ==================== 基础工具 Schema ====================
 
 TOOLS_SCHEMA = [
     {
@@ -204,597 +209,34 @@ TOOLS_SCHEMA = [
             "required": ["result"]
         }
     },
-    # ===== 记忆工具 =====
-    {
-        "name": "remember_user",
-        "description": "记住用户相关信息（偏好、角色、技能等）",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "key": {"type": "string", "description": "记忆键名"},
-                "value": {"type": "string", "description": "记忆内容"}
-            },
-            "required": ["key", "value"]
-        }
-    },
-    {
-        "name": "remember_project",
-        "description": "记住项目相关信息（目标、进度、决策等）",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "key": {"type": "string", "description": "记忆键名"},
-                "value": {"type": "string", "description": "记忆内容"}
-            },
-            "required": ["key", "value"]
-        }
-    },
-    {
-        "name": "remember_feedback",
-        "description": "记住用户反馈（纠正、确认、偏好等）",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "feedback": {"type": "string", "description": "反馈内容"},
-                "category": {"type": "string", "description": "类别（correction/confirmation/preference）"}
-            },
-            "required": ["feedback"]
-        }
-    },
-    {
-        "name": "recall_memory",
-        "description": "回忆记忆内容",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "type": {"type": "string", "description": "记忆类型（user/project/feedback）"},
-                "key": {"type": "string", "description": "特定键名（可选）"}
-            },
-            "required": ["type"]
-        }
-    },
-    # ===== 技能工具 =====
-    {
-        "name": "list_skills",
-        "description": "列出所有可用技能",
-        "parameters": {
-            "type": "object",
-            "properties": {}
-        }
-    },
-    {
-        "name": "use_skill",
-        "description": "使用指定技能",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "skill_name": {"type": "string", "description": "技能名称"},
-                "task": {"type": "string", "description": "具体任务描述"}
-            },
-            "required": ["skill_name"]
-        }
-    },
-    {
-        "name": "create_skill",
-        "description": "创建新技能",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "name": {"type": "string", "description": "技能名称"},
-                "description": {"type": "string", "description": "技能描述"},
-                "trigger": {"type": "string", "description": "触发词"},
-                "system_prompt": {"type": "string", "description": "系统提示词"},
-                "steps": {"type": "array", "items": {"type": "string"}, "description": "执行步骤"}
-            },
-            "required": ["name", "description", "system_prompt"]
-        }
-    },
-    # ===== Plan工具 =====
-    {
-        "name": "create_plan",
-        "description": "创建执行计划。在执行复杂任务前，先创建计划供用户审核。",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "task": {"type": "string", "description": "任务描述"},
-                "description": {"type": "string", "description": "详细说明"},
-                "steps": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "description": {"type": "string"},
-                            "tool": {"type": "string"},
-                            "params": {"type": "object"}
-                        }
-                    },
-                    "description": "执行步骤列表"
-                }
-            },
-            "required": ["task", "steps"]
-        }
-    },
-    {
-        "name": "approve_plan",
-        "description": "批准执行计划",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "plan_id": {"type": "string", "description": "计划ID"}
-            },
-            "required": ["plan_id"]
-        }
-    },
-    {
-        "name": "execute_plan",
-        "description": "执行已批准的计划",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "plan_id": {"type": "string", "description": "计划ID"}
-            },
-            "required": ["plan_id"]
-        }
-    },
-    {
-        "name": "show_plan",
-        "description": "显示当前计划",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "plan_id": {"type": "string", "description": "计划ID (可选)"}
-            }
-        }
-    },
-    # ===== Subagent工具 =====
-    {
-        "name": "spawn_agent",
-        "description": "创建子代理执行独立任务",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "task": {"type": "string", "description": "任务描述"},
-                "tools": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "允许使用的工具列表 (可选)"
-                }
-            },
-            "required": ["task"]
-        }
-    },
-    {
-        "name": "parallel_tasks",
-        "description": "并行执行多个独立任务",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "tasks": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "任务列表"
-                }
-            },
-            "required": ["tasks"]
-        }
-    },
-    {
-        "name": "list_agents",
-        "description": "列出所有子代理",
-        "parameters": {
-            "type": "object",
-            "properties": {}
-        }
-    },
-    # ===== Hooks工具 =====
-    {
-        "name": "list_hooks",
-        "description": "列出所有Hook",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "event": {"type": "string", "description": "按事件类型筛选 (可选)"}
-            }
-        }
-    },
-    {
-        "name": "register_hook",
-        "description": "注册一个新的Hook",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "event": {"type": "string", "description": "事件类型 (pre_tool_call/post_tool_call/pre_task/post_task/on_error/on_file_change)"},
-                "name": {"type": "string", "description": "Hook名称"},
-                "action": {"type": "string", "description": "动作 (backup/log/notify/validate 或 shell:命令)"},
-                "tools": {"type": "array", "items": {"type": "string"}, "description": "限制哪些工具触发"},
-                "description": {"type": "string", "description": "描述"},
-                "blocking": {"type": "boolean", "description": "是否可以阻止操作"}
-            },
-            "required": ["event", "name", "action"]
-        }
-    },
-    {
-        "name": "enable_hook",
-        "description": "启用一个Hook",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "hook_id": {"type": "string", "description": "Hook ID"}
-            },
-            "required": ["hook_id"]
-        }
-    },
-    {
-        "name": "disable_hook",
-        "description": "禁用一个Hook",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "hook_id": {"type": "string", "description": "Hook ID"}
-            },
-            "required": ["hook_id"]
-        }
-    },
-    # ===== Git增强工具 =====
-    {
-        "name": "git_status",
-        "description": "获取详细的Git状态",
-        "parameters": {"type": "object", "properties": {}}
-    },
-    {
-        "name": "git_diff",
-        "description": "查看文件差异",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "file": {"type": "string", "description": "文件路径 (可选)"},
-                "staged": {"type": "boolean", "description": "是否查看暂存区"}
-            }
-        }
-    },
-    {
-        "name": "git_auto_commit",
-        "description": "自动提交变更",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "message": {"type": "string", "description": "提交信息 (可选)"},
-                "files": {"type": "array", "items": {"type": "string"}, "description": "文件列表"},
-                "add_all": {"type": "boolean", "description": "是否添加所有变更"}
-            }
-        }
-    },
-    {
-        "name": "git_log",
-        "description": "查看提交历史",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "count": {"type": "integer", "description": "显示数量"},
-                "graph": {"type": "boolean", "description": "是否显示图形"}
-            }
-        }
-    },
-    {
-        "name": "git_blame",
-        "description": "代码追溯",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "file": {"type": "string", "description": "文件路径"},
-                "start_line": {"type": "integer", "description": "起始行"},
-                "end_line": {"type": "integer", "description": "结束行"}
-            },
-            "required": ["file"]
-        }
-    },
-    {
-        "name": "git_stash",
-        "description": "暂存管理",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "action": {"type": "string", "description": "操作 (save/list/pop/drop)"},
-                "message": {"type": "string", "description": "暂存信息"},
-                "index": {"type": "integer", "description": "暂存索引"}
-            },
-            "required": ["action"]
-        }
-    },
-    {
-        "name": "git_branch",
-        "description": "分支管理",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "action": {"type": "string", "description": "操作 (list/create/delete/checkout)"},
-                "name": {"type": "string", "description": "分支名"},
-                "remote": {"type": "boolean", "description": "是否显示远程分支"}
-            },
-            "required": ["action"]
-        }
-    },
-    # ===== Worktree工具 =====
-    {
-        "name": "worktree_list",
-        "description": "列出所有工作树",
-        "parameters": {"type": "object", "properties": {}}
-    },
-    {
-        "name": "worktree_create",
-        "description": "创建新的工作树",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "name": {"type": "string", "description": "工作树名称"},
-                "branch": {"type": "string", "description": "分支名"},
-                "new_branch": {"type": "boolean", "description": "是否创建新分支"}
-            },
-            "required": ["name"]
-        }
-    },
-    {
-        "name": "worktree_remove",
-        "description": "删除工作树",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "name": {"type": "string", "description": "工作树名称"},
-                "force": {"type": "boolean", "description": "是否强制删除"}
-            },
-            "required": ["name"]
-        }
-    },
-    {
-        "name": "worktree_merge",
-        "description": "合并工作树变更",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "source": {"type": "string", "description": "源工作树名称"},
-                "message": {"type": "string", "description": "合并信息"}
-            },
-            "required": ["source"]
-        }
-    },
-    # ===== CodeMap工具 =====
-    {
-        "name": "generate_codemap",
-        "description": "生成代码地图",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "directory": {"type": "string", "description": "目录路径"},
-                "detailed": {"type": "boolean", "description": "是否显示详细信息"}
-            },
-            "required": ["directory"]
-        }
-    },
-    {
-        "name": "find_symbol",
-        "description": "查找符号定义",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "directory": {"type": "string", "description": "搜索目录"},
-                "symbol": {"type": "string", "description": "符号名称"}
-            },
-            "required": ["directory", "symbol"]
-        }
-    },
-    {
-        "name": "find_references",
-        "description": "查找符号引用",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "directory": {"type": "string", "description": "搜索目录"},
-                "symbol": {"type": "string", "description": "符号名称"}
-            },
-            "required": ["directory", "symbol"]
-        }
-    },
-    {
-        "name": "file_summary",
-        "description": "获取文件摘要",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "file": {"type": "string", "description": "文件路径"}
-            },
-            "required": ["file"]
-        }
-    },
-    # ===== 多文件编辑工具 =====
-    {
-        "name": "edit_multiple",
-        "description": "批量编辑多个文件",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "edits": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "file_path": {"type": "string", "description": "文件路径"},
-                            "action": {"type": "string", "description": "操作 (create/modify/delete)"},
-                            "content": {"type": "string", "description": "新内容"},
-                            "old_string": {"type": "string", "description": "要替换的旧内容"},
-                            "new_string": {"type": "string", "description": "替换后的新内容"}
-                        },
-                        "required": ["file_path"]
-                    },
-                    "description": "编辑列表"
-                },
-                "description": {"type": "string", "description": "操作描述"}
-            },
-            "required": ["edits"]
-        }
-    },
-    {
-        "name": "preview_edits",
-        "description": "预览编辑结果",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "edits": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "file_path": {"type": "string"},
-                            "action": {"type": "string"},
-                            "content": {"type": "string"},
-                            "old_string": {"type": "string"},
-                            "new_string": {"type": "string"}
-                        },
-                        "required": ["file_path"]
-                    }
-                }
-            },
-            "required": ["edits"]
-        }
-    },
-    {
-        "name": "undo_edit",
-        "description": "撤销编辑操作",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "operation_id": {"type": "string", "description": "操作ID (可选)"}
-            }
-        }
-    },
-    {
-        "name": "redo_edit",
-        "description": "重做编辑操作",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "operation_id": {"type": "string", "description": "操作ID (可选)"}
-            }
-        }
-    },
-    {
-        "name": "edit_history",
-        "description": "查看编辑历史",
-        "parameters": {"type": "object", "properties": {}}
-    },
-    # ===== 代码补全工具 =====
-    {
-        "name": "get_completions",
-        "description": "获取代码补全建议",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "file": {"type": "string", "description": "文件路径"},
-                "line": {"type": "integer", "description": "行号"},
-                "column": {"type": "integer", "description": "列号"}
-            },
-            "required": ["file", "line", "column"]
-        }
-    },
-    {
-        "name": "get_inline_suggestion",
-        "description": "获取内联代码建议",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "file": {"type": "string", "description": "文件路径"},
-                "line": {"type": "integer", "description": "行号"},
-                "column": {"type": "integer", "description": "列号"}
-            },
-            "required": ["file", "line", "column"]
-        }
-    },
-    # ===== 沙箱执行工具 =====
-    {
-        "name": "execute_python",
-        "description": "在沙箱中执行Python代码",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "code": {"type": "string", "description": "Python代码"},
-                "timeout": {"type": "integer", "description": "超时时间 (秒)"}
-            },
-            "required": ["code"]
-        }
-    },
-    {
-        "name": "execute_javascript",
-        "description": "在沙箱中执行JavaScript代码",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "code": {"type": "string", "description": "JavaScript代码"},
-                "timeout": {"type": "integer", "description": "超时时间 (秒)"}
-            },
-            "required": ["code"]
-        }
-    },
-    {
-        "name": "execute_in_sandbox",
-        "description": "在沙箱中执行代码 (自动检测语言)",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "code": {"type": "string", "description": "代码内容"},
-                "language": {"type": "string", "description": "语言 (python/javascript/shell)"},
-                "timeout": {"type": "integer", "description": "超时时间 (秒)"}
-            },
-            "required": ["code", "language"]
-        }
-    },
-    {
-        "name": "validate_code",
-        "description": "验证代码语法",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "code": {"type": "string", "description": "代码内容"},
-                "language": {"type": "string", "description": "语言 (python/javascript/shell)"}
-            },
-            "required": ["code", "language"]
-        }
-    }
 ]
 
-# ==================== 嵌入式工具集成 ====================
+# ==================== 危险命令检测 ====================
 
-def _get_embedded_tools() -> List[Dict]:
-    """获取嵌入式工具定义（延迟导入避免循环依赖）"""
-    from frok.embedded import EMBEDDED_TOOLS
-    return EMBEDDED_TOOLS
+DANGEROUS_COMMANDS = [
+    r"rm\s+-rf\s+/",
+    r"mkfs\.",
+    r"dd\s+if=",
+    r">\s*/dev/sd",
+    r"chmod\s+777\s+/",
+    r"curl\s+.*\|\s*(ba)?sh",
+    r"wget\s+.*\|\s*(ba)?sh",
+    r":(){ :\|:& };:",  # fork bomb
+    r"mv\s+/\s",
+    r"rm\s+-rf\s+~",
+    r"rm\s+-rf\s+\*",
+    r"format\s+[a-zA-Z]:",
+    r"del\s+/[sS]\s+/[qQ]\s+[a-zA-Z]:\\",
+]
 
 
-def get_all_tools() -> List[Dict]:
-    """获取所有可用工具（包括嵌入式工具）"""
-    all_tools = TOOLS_SCHEMA.copy()
-    try:
-        all_tools.extend(_get_embedded_tools())
-    except ImportError:
-        pass  # 嵌入式模块不可用时忽略
-    return all_tools
+def _check_command_safety(command: str) -> Optional[str]:
+    """检查命令是否危险，返回警告信息或 None"""
+    for pattern in DANGEROUS_COMMANDS:
+        if re.search(pattern, command, re.IGNORECASE):
+            return f"检测到危险命令模式: {pattern}"
+    return None
 
-
-# 与 agent._execute_tool_call 中注册的工具名一致（用于从模型文本中可靠识别 tool_call）
-KNOWN_TOOL_NAMES = frozenset(t["name"] for t in TOOLS_SCHEMA) | frozenset({
-    "remember_user", "remember_project", "remember_feedback", "recall_memory",
-    "list_skills", "use_skill", "create_skill",
-    "create_plan", "approve_plan", "execute_plan", "show_plan", "list_plans", "update_step",
-    "spawn_agent", "run_agent", "parallel_tasks", "collect_result", "list_agents", "cancel_agent",
-    "list_hooks", "register_hook", "unregister_hook", "enable_hook", "disable_hook",
-    "git_status", "git_diff", "git_auto_commit", "git_log", "git_blame", "git_stash", "git_branch", "git_push", "git_pull",
-    "worktree_list", "worktree_create", "worktree_remove", "worktree_switch", "worktree_merge", "worktree_snapshot", "worktree_status",
-    "generate_codemap", "find_symbol", "find_references", "file_summary", "list_symbols",
-    "edit_multiple", "preview_edits", "undo_edit", "redo_edit", "edit_history",
-    "get_completions", "get_inline_suggestion",
-    "execute_python", "execute_javascript", "execute_shell", "execute_in_sandbox", "validate_code",
-    # 嵌入式工具
-    "embedded_detect", "embedded_generate", "embedded_compile", "embedded_upload",
-    "embedded_monitor", "embedded_list_boards", "embedded_list_ports", "embedded_stop_monitor",
-})
 
 # ==================== 工具执行器 ====================
 
@@ -802,10 +244,18 @@ class ToolExecutor:
     def __init__(self, working_dir: str = None):
         self.working_dir = working_dir or os.getcwd()
 
+    @staticmethod
+    def _is_wsl() -> bool:
+        """检测是否在 WSL 环境中"""
+        try:
+            with open("/proc/version", "r") as f:
+                return "microsoft" in f.read().lower()
+        except Exception:
+            return False
+
     def _normalize_path(self, path: str) -> str:
-        """标准化路径，处理Windows路径"""
-        if '\\' in path and ':' in path:
-            # Windows路径，转换为WSL路径
+        """标准化路径：仅在 WSL 中将 Windows 路径转为 /mnt/ 格式"""
+        if '\\' in path and ':' in path and self._is_wsl():
             drive = path[0].lower()
             rest = path[2:].replace('\\', '/')
             return f"/mnt/{drive}{rest}"
@@ -821,8 +271,9 @@ class ToolExecutor:
                 return f"[错误] {tool_name} 执行失败: {e}"
         return f"[错误] 未知工具: {tool_name}"
 
+    # ===== 文件操作 =====
+
     def read_file(self, path: str, start_line: int = None, end_line: int = None) -> str:
-        """读取文件"""
         try:
             path = self._normalize_path(path)
             file_path = Path(path).expanduser().resolve()
@@ -846,7 +297,6 @@ class ToolExecutor:
             return f"[错误] {e}"
 
     def write_file(self, path: str, content: str) -> str:
-        """写入文件"""
         try:
             path = self._normalize_path(path)
             file_path = Path(path).expanduser().resolve()
@@ -858,7 +308,6 @@ class ToolExecutor:
             return f"[错误] {e}"
 
     def create_directory(self, path: str) -> str:
-        """创建文件夹"""
         try:
             path = self._normalize_path(path)
             dir_path = Path(path).expanduser().resolve()
@@ -868,7 +317,6 @@ class ToolExecutor:
             return f"[错误] {e}"
 
     def edit_file(self, path: str, old_string: str, new_string: str) -> str:
-        """编辑文件"""
         try:
             path = self._normalize_path(path)
             file_path = Path(path).expanduser().resolve()
@@ -892,7 +340,6 @@ class ToolExecutor:
             return f"[错误] {e}"
 
     def append_file(self, path: str, content: str) -> str:
-        """追加内容"""
         try:
             file_path = Path(path).expanduser().resolve()
             with open(file_path, "a", encoding="utf-8") as f:
@@ -902,7 +349,6 @@ class ToolExecutor:
             return f"[错误] {e}"
 
     def delete_file(self, path: str) -> str:
-        """删除文件"""
         try:
             file_path = Path(path).expanduser().resolve()
             if not file_path.exists():
@@ -913,7 +359,6 @@ class ToolExecutor:
             return f"[错误] {e}"
 
     def copy_file(self, source: str, destination: str) -> str:
-        """复制文件"""
         try:
             src = Path(source).expanduser().resolve()
             dst = Path(destination).expanduser().resolve()
@@ -927,7 +372,6 @@ class ToolExecutor:
             return f"[错误] {e}"
 
     def move_file(self, source: str, destination: str) -> str:
-        """移动文件"""
         try:
             src = Path(source).expanduser().resolve()
             dst = Path(destination).expanduser().resolve()
@@ -938,8 +382,9 @@ class ToolExecutor:
         except Exception as e:
             return f"[错误] {e}"
 
+    # ===== 目录操作 =====
+
     def list_directory(self, path: str = ".", show_hidden: bool = False) -> str:
-        """列出目录"""
         try:
             dir_path = Path(path).expanduser().resolve()
             if not dir_path.exists():
@@ -952,7 +397,7 @@ class ToolExecutor:
             output = []
             for entry in entries:
                 if entry.is_dir():
-                    output.append(f"  📁 {entry.name}/")
+                    output.append(f"  {entry.name}/")
                 else:
                     size = entry.stat().st_size
                     if size < 1024:
@@ -961,14 +406,13 @@ class ToolExecutor:
                         size_str = f"{size//1024}KB"
                     else:
                         size_str = f"{size//(1024*1024)}MB"
-                    output.append(f"  📄 {entry.name} ({size_str})")
+                    output.append(f"  {entry.name} ({size_str})")
 
             return "\n".join(output) if output else "空目录"
         except Exception as e:
             return f"[错误] {e}"
 
     def get_tree(self, path: str = ".", max_depth: int = 3) -> str:
-        """获取目录树"""
         try:
             dir_path = Path(path).expanduser().resolve()
             if not dir_path.exists():
@@ -981,7 +425,6 @@ class ToolExecutor:
             return f"[错误] {e}"
 
     def _build_tree(self, path, prefix, max_depth, current_depth, output):
-        """递归构建目录树"""
         if current_depth >= max_depth:
             return
         try:
@@ -1003,8 +446,9 @@ class ToolExecutor:
         except PermissionError:
             output.append(f"{prefix}└── [权限不足]")
 
+    # ===== 搜索 =====
+
     def search_files(self, directory: str, pattern: str, glob: str = "*") -> str:
-        """搜索文件内容"""
         try:
             dir_path = Path(directory).expanduser().resolve()
             if not dir_path.exists():
@@ -1023,7 +467,7 @@ class ToolExecutor:
                                 results.append(f"{file_path}:{i}: {line.rstrip()}")
                                 if len(results) >= 50:
                                     break
-                    except:
+                    except Exception:
                         continue
                 if len(results) >= 50:
                     break
@@ -1033,7 +477,6 @@ class ToolExecutor:
             return f"[错误] {e}"
 
     def find_files(self, directory: str, pattern: str) -> str:
-        """查找文件"""
         try:
             dir_path = Path(directory).expanduser().resolve()
             if not dir_path.exists():
@@ -1044,18 +487,38 @@ class ToolExecutor:
         except Exception as e:
             return f"[错误] {e}"
 
+    # ===== 命令执行（安全加固） =====
+
     def execute_command(self, command: str, working_directory: str = None) -> str:
-        """执行命令"""
+        # 安全检查
+        danger = _check_command_safety(command)
+        if danger:
+            logger.warning(f"危险命令被拦截: {command} ({danger})")
+            return f"[安全拦截] {danger}\n命令: {command}\n如需执行此命令，请用户手动操作。"
+
+        logger.info(f"执行命令: {command}")
         try:
             cwd = working_directory or self.working_dir
-            result = subprocess.run(
-                command,
-                shell=True,
-                capture_output=True,
-                text=True,
-                timeout=30,
-                cwd=cwd
-            )
+            # Windows 上 cmd.exe 内置命令（如 dir、type）需要 shell=True
+            # 其他情况使用 shlex.split 避免命令注入
+            if sys.platform == 'win32':
+                result = subprocess.run(
+                    command,
+                    shell=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                    cwd=cwd
+                )
+            else:
+                args = shlex.split(command)
+                result = subprocess.run(
+                    args,
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                    cwd=cwd
+                )
             output = ""
             if result.stdout:
                 output += result.stdout
@@ -1070,49 +533,36 @@ class ToolExecutor:
             return f"[错误] {e}"
 
     def git_command(self, subcommand: str, args: str = "") -> str:
-        """执行Git命令"""
         cmd = f"git {subcommand}"
         if args:
             cmd += f" {args}"
         return self.execute_command(cmd)
 
     def ask_user(self, question: str) -> str:
-        """向用户提问（在智能体模式下返回问题文本）"""
         return f"[需要用户回答] {question}"
 
     def finish(self, result: str) -> str:
-        """完成任务"""
         return f"[任务完成] {result}"
 
-# ==================== 工具格式化 ====================
 
-def get_tools_for_prompt() -> str:
-    """获取工具描述，用于提示词"""
-    lines = ["你可以使用以下工具:\n"]
-    for tool in TOOLS_SCHEMA:
-        params = []
-        for name, info in tool["parameters"]["properties"].items():
-            required = name in tool["parameters"].get("required", [])
-            param_str = f"{name}" + (" (必填)" if required else " (可选)")
-            params.append(param_str)
+# ==================== 工具调用解析 ====================
 
-        lines.append(f"### {tool['name']}")
-        lines.append(f"{tool['description']}")
-        lines.append(f"参数: {', '.join(params)}")
-        lines.append("")
+def parse_tool_calls(text: str, known_tool_names: set = None) -> List[Dict]:
+    """
+    从AI响应中解析工具调用
 
-    lines.append("## 使用格式")
-    lines.append("要调用工具，请使用以下JSON格式:")
-    lines.append('```tool_call')
-    lines.append('{"name": "工具名", "parameters": {"参数1": "值1", "参数2": "值2"}}')
-    lines.append('```\n')
-    lines.append("你可以一次调用多个工具，每个工具用单独的tool_call块。")
-    lines.append("当任务完成时，调用 finish 工具。")
+    支持:
+    1. ```tool_call ... ``` 围栏格式
+    2. ```json ... ``` 围栏格式（含已知工具名时）
+    3. 全文裸 JSON 扫描
 
-    return "\n".join(lines)
+    Args:
+        text: AI 响应文本
+        known_tool_names: 已知工具名集合，用于过滤非工具 JSON
 
-def parse_tool_calls(text: str) -> List[Dict]:
-    """从AI响应中解析工具调用（支持 markdown 围栏、嵌套 parameters、裸 JSON）"""
+    Returns:
+        解析到的工具调用列表
+    """
     if not text or not text.strip():
         return []
 
@@ -1168,13 +618,13 @@ def parse_tool_calls(text: str) -> List[Dict]:
     def append_if_tool(call: Optional[Dict]) -> None:
         if not call or not isinstance(call.get("name"), str):
             return
-        if call["name"] not in KNOWN_TOOL_NAMES:
+        if known_tool_names and call["name"] not in known_tool_names:
             return
         normalize_call(call)
         calls.append(call)
 
     def parse_multi_json(block: str) -> None:
-        """从一段文本中顺序解析多个 JSON 对象（同一围栏内多工具）"""
+        """从一段文本中顺序解析多个 JSON 对象"""
         decoder = JSONDecoder()
         idx = 0
         n = len(block)
@@ -1194,21 +644,52 @@ def parse_tool_calls(text: str) -> List[Dict]:
                     append_if_tool(fallback)
                 break
 
-    # 1. ```tool_call ... ```（不要求围栏结束前额外换行）
+    # 1. ```tool_call ... ```
     for m in re.finditer(r'```tool_call\s*\n?([\s\S]*?)```', text, re.IGNORECASE):
         parse_multi_json(m.group(1))
 
     if calls:
         return calls
 
-    # 2. ```json ... ```（仅当内含已知工具名，避免把普通 JSON 当工具）
+    # 2. ```json ... ```
     for m in re.finditer(r'```json\s*\n?([\s\S]*?)```', text):
         parse_multi_json(m.group(1))
 
     if calls:
         return calls
 
-    # 3. 全文扫描：模型常直接输出 {"name":"write_file","parameters":{...}}，旧版正则无法匹配嵌套括号
+    # 3. XML-style tool_call (some models use this format)
+    def parse_xml_calls(text):
+        results = []
+        tag = chr(60) + "tool_call" + chr(62)  # build tag without literal
+        close_tag = chr(60) + "/tool_call" + chr(62)
+        func_open = chr(60) + "function" + chr(62)
+        func_close = chr(60) + "/function" + chr(62)
+        pattern = re.escape(tag) + r"([\s\S]*?)" + re.escape(close_tag)
+        for m in re.finditer(pattern, text):
+            block = m.group(0)
+            fn_pattern = re.escape(func_open) + r"(\w+)" + re.escape(func_close)
+            fn_match = re.search(fn_pattern, block)
+            if fn_match:
+                call = {"name": fn_match.group(1), "parameters": {}}
+                # Only match parameter tags (skip tool_call and function)
+                for pm in re.finditer(r"<(?!tool_call|function|/)(\w+)>([\s\S]*?)</\1>", block):
+                    pname = pm.group(1)
+                    pval = pm.group(2).strip()
+                    try:
+                        call["parameters"][pname] = json.loads(pval)
+                    except json.JSONDecodeError:
+                        call["parameters"][pname] = pval
+                results.append(call)
+        return results
+
+    for call in parse_xml_calls(text):
+        append_if_tool(call)
+
+    if calls:
+        return calls
+
+    # 4. Full text scan (bare JSON)
     decoder = JSONDecoder()
     i = 0
     n = len(text)

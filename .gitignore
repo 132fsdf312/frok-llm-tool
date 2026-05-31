@@ -1,9 +1,37 @@
+# Python
 __pycache__/
-*.pyc
-*~*
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+
+# 环境
 .env
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Frok 内部
+.setup_complete
+frok/memory/sessions/
+frok/plans/
+frok/hooks/hooks.log
+frok/skills/auto_*.json
 .frok_edits/
 .worktrees/
 
 # 配置文件（包含API Key）
 config.json
+
+# 系统
+.DS_Store
+Thumbs.db
+*~*
