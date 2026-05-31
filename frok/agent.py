@@ -406,9 +406,6 @@ class FrokAgent:
                 # 模型直接回复文本（问候、简单问答等）→ 作为最终结果
                 if not shown_prefix:
                     self.cli.print_assistant()
-                # 打印文本回复（缩进对齐）
-                for line in response.split('\n'):
-                    print(f"  {line}")
                 final_result = response
                 break
 
