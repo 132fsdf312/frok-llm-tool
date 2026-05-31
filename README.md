@@ -86,26 +86,26 @@ python main.py
 
 ### 内置技能
 
-| 技能 | 触发词 |
-|------|--------|
-| 代码审查 | `审查` / `review` |
-| 调试助手 | `调试` / `debug` |
-| 代码重构 | `重构` / `refactor` |
-| 文档生成 | `文档` / `docs` |
-| 代码解释 | `解释` / `explain` |
-| 测试生成 | `测试` / `test` |
-| 项目初始化 | `初始化` / `setup` |
-| 学习指南 | `学习` / `tutorial` |
+| 技能    | 触发词               |
+| ----- | ----------------- |
+| 代码审查  | `审查` / `review`   |
+| 调试助手  | `调试` / `debug`    |
+| 代码重构  | `重构` / `refactor` |
+| 文档生成  | `文档` / `docs`     |
+| 代码解释  | `解释` / `explain`  |
+| 测试生成  | `测试` / `test`     |
+| 项目初始化 | `初始化` / `setup`   |
+| 学习指南  | `学习` / `tutorial` |
 
 ## 支持的厂商
 
-| 厂商 | 模型 |
-|------|------|
-| OpenAI | gpt-4, gpt-3.5-turbo |
-| Anthropic | claude-sonnet, claude-haiku |
-| 阿里云 | qwen-turbo, qwen-plus, qwen-max |
-| DeepSeek | deepseek-v4-pro, deepseek-chat |
-| MiMo | mimo-v2.5-pro, mimo-v2-pro |
+| 厂商        | 模型                              |
+| --------- | ------------------------------- |
+| OpenAI    | gpt-4, gpt-3.5-turbo            |
+| Anthropic | claude-sonnet, claude-haiku     |
+| 阿里云       | qwen-turbo, qwen-plus, qwen-max |
+| DeepSeek  | deepseek-v4-pro, deepseek-chat  |
+| MiMo      | mimo-v2.5-pro, mimo-v2-pro      |
 
 ## 核心功能
 
@@ -210,20 +210,20 @@ Frok: [创建3个子代理并行执行]
 
 ## 命令列表
 
-| 命令 | 说明 |
-|------|------|
-| `/help` | 显示帮助 |
-| `/skills` | 列出技能 |
-| `/status` | 显示状态 |
-| `/memory` | 显示记忆 |
-| `/plan` | 显示当前计划 |
+| 命令          | 说明         |
+| ----------- | ---------- |
+| `/help`     | 显示帮助       |
+| `/skills`   | 列出技能       |
+| `/status`   | 显示状态       |
+| `/memory`   | 显示记忆       |
+| `/plan`     | 显示当前计划     |
 | `/planmode` | 切换 Plan 模式 |
-| `/hooks` | 列出 Hook |
-| `/agents` | 列出子代理 |
-| `/switch` | 切换模型 |
-| `/clear` | 清空对话 |
-| `/save` | 保存会话 |
-| `/quit` | 退出 |
+| `/hooks`    | 列出 Hook    |
+| `/agents`   | 列出子代理      |
+| `/switch`   | 切换模型       |
+| `/clear`    | 清空对话       |
+| `/save`     | 保存会话       |
+| `/quit`     | 退出         |
 
 ## 嵌入式开发
 
