@@ -241,9 +241,9 @@ class FrokCLI:
         try:
             if not prompt:
                 if self._plan_mode:
-                    prompt = f"{c.YELLOW}{c.BOLD}❯{c.RESET} {c.DIM}[Plan]{c.RESET} "
+                    prompt = f"{c.YELLOW}{c.BOLD}>{c.RESET} {c.DIM}[Plan]{c.RESET} "
                 else:
-                    prompt = f"{c.GREEN}{c.BOLD}❯{c.RESET} "
+                    prompt = f"{c.GREEN}{c.BOLD}>{c.RESET} "
             return input(prompt).strip()
         except (EOFError, KeyboardInterrupt):
             return "/quit"
